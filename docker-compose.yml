@@ -1,0 +1,48 @@
+version: '3'
+
+volumes:
+  postgres_data: {}
+  static_data: {}
+  media_data: {}
+
+services:
+  web: &web
+    container_name: hr-helper-web
+    # depends_on:
+    #   - db
+    build: .
+    volumes:
+      - .:/app/
+      - ./static:/home/app/web/static
+      - ./media:/home/app/web/media
+    env_file: .env
+    command: python manage.py runserver 0.0.0.0:8045
+    ports:
+      - "8045:8045"
+    restart: always
+
+  db:
+    image: postgres:13.4-buster
+    container_name: hr-helper-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file: .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    restart: always
+
+  redis:
+    container_name: hr-helper-redis
+    image: redis:5.0
+    restart: always
+
+  bot:
+     <<: *web
+     container_name: hr-helper-bot
+     ports: [ ]
+     command: python manage.py run_bot
+     restart: always
