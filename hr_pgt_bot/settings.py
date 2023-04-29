@@ -135,11 +135,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 BOT_TOKEN = env.str("BOT_TOKEN")
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"{env.str('REDIS_URL', 'redis://redis:6379/0')}",
-        "KEY_PREFIX": "uz_chess",
-    }
-}
+CSRF_TRUSTED_ORIGINS = ["https://2500-84-54-75-158.ngrok-free.app"]
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": f"{env.str('REDIS_URL', 'redis://localhost:6379/0')}",
+#         "KEY_PREFIX": "uz_chess",
+#     }
+# }

@@ -3,8 +3,9 @@ from telegram.ext.commandhandler import CommandHandler
 from telegram.update import Update
 from telegram.ext.callbackcontext import CallbackContext
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
-from gpt_bot.models import TelegramUser, FlowProcess, Question, Specialization
+from gpt_bot.models import TelegramUser, FlowProcess, Question, Specialization, Region, UserLimit
 from .loader import updater
+from django.db.models import F
 from django.core.cache import cache
 import datetime
 import openai
@@ -30,11 +31,11 @@ class State:
 
 def init_user(func):
 	def wrapper(update: Update, context: CallbackContext):
-		chat_id = update.message.chat.id
+		chat_id = update.effective_chat.id
 		TelegramUser.objects.get_or_create(
       		user_id=chat_id, 
         	defaults={
-				"username": update.message.from_user.username,
+				"username": update.effective_chat.username,
 			}
 		)
 		return func(update, context)
@@ -42,9 +43,25 @@ def init_user(func):
 	return wrapper
 
 
-openai.api_key = "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"
+openai.api_key = "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"
 
 def ask_gpt(prompt):
+    question = openai.Completion.create(
+        model="text-davinci-003",
+        temperature=0.7,
+        prompt=prompt,
+        max_tokens=1000,
+        top_p=1,
+        n=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        stop=None
+    )
+    return question.choices[0].text
+
+
+def get_iq_questions() -> list:
+    prompt = "Give 10 questions for testing my IQ. Question in russian."
     question = openai.Completion.create(
         model="text-davinci-003",
         temperature=0.7,
@@ -56,8 +73,11 @@ def ask_gpt(prompt):
         presence_penalty=0,
         stop=None
     )
-    return question.choices[0].text
-
+    iq_questions = []
+    for q in question.choices[0].text.split("\n"):
+        if q:
+            iq_questions.append(q)
+    return iq_questions
 
 
 phone_request_button = ReplyKeyboardMarkup(
@@ -98,7 +118,7 @@ def save_user_conv_data(user_id, data) -> None:
 		phone_number=data["phone_number"],
 		birth_date=data["birth_date"],
 		gender="male" if data["gender"] == "Мужской" else "famale",
-  		region=data["region"],
+  		region_id=data["region"],
     	cv=get_file_from_id(data["cv_file_id"]),
 	)
     process.specialization.set(data["categories"])
@@ -116,9 +136,16 @@ def set_cur_question_state(user_id, data):
 
 @init_user
 def get_user_contact(update: Update, context: CallbackContext):
+    phone_number = update.message.contact.phone_number
     data = {
-		"phone_number": update.message.contact.phone_number
+		"phone_number": phone_number
 	}
+    allow = UserLimit.objects.filter(used__lt=F("limit"), phone_number=phone_number).first()
+    if not allow:
+        update.message.reply_text("👨‍💼К сожалению, вы не можете пройти тестирование. Пожалуйста, обратитесь к администратору.")
+        return ConversationHandler.END
+    allow.used = F("used") + 1
+    allow.save(update_fields=["used"])
     set_user_conv_data(update.message.chat.id, data)
     update.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свое полное имя:")
     return State.ENTER_FULL_NAME
@@ -133,6 +160,19 @@ def get_user_full_name(update: Update, context: CallbackContext):
     update.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свою дату рождения (dd.mm.yyyy):")
     return State.ENTER_BIRTH_DATE
 
+
+def get_regions_board():
+    regions = [[]]
+    for r in Region.objects.all():
+        name = r.name
+        if len(regions[-1]) < 2:
+            regions[-1].append(InlineKeyboardButton(name, callback_data=str(r.id)))
+        else:
+            regions.append([InlineKeyboardButton(name, callback_data=str(r.id))])
+    regions_board = InlineKeyboardMarkup(regions)
+    return regions_board
+
+
     
 @init_user
 def get_user_birth_date(update: Update, context: CallbackContext):
@@ -141,17 +181,21 @@ def get_user_birth_date(update: Update, context: CallbackContext):
     data = get_user_conv_data(update.message.chat.id)
     data["birth_date"] = date
     set_user_conv_data(update.message.chat.id, data)
-    update.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свой регион:")
+    update.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свой регион:", reply_markup=get_regions_board())
     return State.ENTER_REGION
+
 
 
 @init_user
 def get_user_region(update: Update, context: CallbackContext):
-    region = update.message.text
-    data = get_user_conv_data(update.message.chat.id)
+    update.callback_query.message.edit_reply_markup(reply_markup=None)
+    region = update.callback_query.data
+    update.callback_query.message.edit_text(f"👨‍💼Спасибо! Пожалуйста введите свой регион:\n{Region.objects.get(id=region).name}")
+    user_id = update.effective_chat.id
+    data = get_user_conv_data(user_id)
     data["region"] = region
-    set_user_conv_data(update.message.chat.id, data)
-    update.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свой пол:", reply_markup=gender_choices)
+    set_user_conv_data(user_id, data)
+    update.callback_query.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свой пол:", reply_markup=gender_choices)
     return State.ENTER_GENDER
     
     
@@ -180,9 +224,9 @@ def get_user_category_board(user_id, selected_categories=None):
         else:
             categories.append([InlineKeyboardButton(name, callback_data=str(c.id))])
     if len(categories[-1]) < 2:
-            categories[-1].append(InlineKeyboardButton("Сохранять", callback_data="save"))
+            categories[-1].append(InlineKeyboardButton("Сохранить", callback_data="save"))
     else:
-        categories.append([InlineKeyboardButton("Сохранять", callback_data="save")])
+        categories.append([InlineKeyboardButton("Сохранить", callback_data="save")])
     categories_board = InlineKeyboardMarkup(categories)
     return categories_board
 
@@ -218,14 +262,7 @@ def get_user_category(update: Update, context: CallbackContext):
     set_user_conv_data(user_id, data)
     save_user_conv_data(user_id, data)
     update.callback_query.message.reply_text("📝Спасибо! Ваша информация сохранена. Пожалуйста, ответьте на следующие вопросы:")
-    questions = ask_gpt(    
-        "10 вопросов IQ о числовых рядах. Вопрос должен быть таким: Какое число будет следующим в ряду 1, 3, 6, 10, 15?. Давай только вопросы."
-	)
-    iq_questions = []
-    for q in questions.split("\n"):
-        if q:
-            iq_questions.append(q)
-    
+    iq_questions = get_iq_questions()
     set_cur_question_state(user_id, {"questions": iq_questions, "index": 0, "question_type": "iq_test"})
     update.callback_query.message.reply_text(iq_questions[0])
     return State.ENTER_QUESTION_ANSWER
@@ -287,6 +324,11 @@ def analize_user_answers(process_id):
 @init_user
 def get_user_question_answer(update: Update, context: CallbackContext):  
     answer = update.message.text
+    
+    if len(answer) > 200:
+        update.message.reply_text("Слишком длинный ответ. Пожалуйста, ответьте на вопрос в одном сообщении.")
+        return State.ENTER_QUESTION_ANSWER
+    
     data = get_cur_question_state(update.message.chat.id)
     conv_data = get_user_conv_data(update.message.chat.id)
     question = data["questions"][data["index"]]
@@ -342,7 +384,7 @@ question_conv_handler = ConversationHandler(
         State.ENTER_PHONE_NUMBER: [MessageHandler(Filters.contact, get_user_contact)],
         State.ENTER_FULL_NAME: [MessageHandler(Filters.text, get_user_full_name)],
         State.ENTER_BIRTH_DATE: [MessageHandler(Filters.text, get_user_birth_date)],
-        State.ENTER_REGION: [MessageHandler(Filters.text, get_user_region)],
+        State.ENTER_REGION: [CallbackQueryHandler(get_user_region)],
         State.ENTER_GENDER: [MessageHandler(Filters.text, get_user_gender)],
         State.ENTER_CV: [MessageHandler(Filters.document | Filters.photo, get_user_cv)],
         State.ENTER_CATEGORIES: [CallbackQueryHandler(get_user_category)],

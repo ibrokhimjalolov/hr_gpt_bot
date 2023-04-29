@@ -22,3 +22,13 @@ class FlowProcessAdmin(admin.ModelAdmin):
 @admin.register(models.Specialization)
 class SpecializationAdmin(admin.ModelAdmin):
     list_display = ("id", "name")
+    
+    
+@admin.register(models.Region)
+class RegionAdmin(admin.ModelAdmin):
+    list_display = ("id", "name")
+    
+    
+@admin.register(models.UserLimit)
+class UserLimitAdmin(admin.ModelAdmin):
+    list_display = ("id", "phone_number", "limit", "used")

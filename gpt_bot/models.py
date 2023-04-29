@@ -25,6 +25,14 @@ class Specialization(models.Model):
     
     def __str__(self) -> str:
         return self.name
+
+
+class Region(models.Model):
+    name = models.CharField(max_length=255)
+    
+    def __str__(self) -> str:
+        return self.name
+   
     
 
 class FlowProcess(models.Model):
@@ -34,7 +42,7 @@ class FlowProcess(models.Model):
     phone_number = models.CharField(max_length=255)
     birth_date = models.DateField()
     gender = models.CharField(max_length=8, choices=Gender.choices)
-    region = models.CharField(max_length=255)
+    region = models.ForeignKey(Region, on_delete=models.CASCADE, null=True)
     specialization = models.ManyToManyField(Specialization)
     cv = models.URLField(null=True, blank=True)
     
@@ -45,6 +53,9 @@ class FlowProcess(models.Model):
     
     professional_test_main_result = models.TextField(null=True, blank=True)
     professional_test_recommendation = models.TextField(null=True, blank=True)
+    
+    def __str__(self) -> str:
+        return f"{self.full_name} - {self.id}"
 
 
 class QuestionType(models.TextChoices):
@@ -60,3 +71,17 @@ class Question(models.Model):
     question_type = models.CharField(max_length=32, choices=QuestionType.choices)
     question = models.TextField()
     answer = models.TextField()
+
+    def __str__(self) -> str:
+        return f"{self.question_type} - {self.index}"
+
+
+
+class UserLimit(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    phone_number = models.CharField(max_length=255)
+    limit = models.IntegerField(default=0)
+    used = models.IntegerField(default=0)
+    
+    def __str__(self) -> str:
+        return self.phone_number
