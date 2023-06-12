@@ -267,7 +267,9 @@ def get_user_category(update: Update, context: CallbackContext):
     set_user_conv_data(user_id, data)
     save_user_conv_data(user_id, data)
     update.callback_query.message.reply_text(
-        "📝Спасибо! Ваша информация сохранена. Пожалуйста, ответьте на следующие вопросы:")
+        "📝Спасибо! Ваша информация сохранена.\n"
+        "🔄Генерация вопросов..."
+    )
     iq_questions = get_iq_questions()
     set_cur_question_state(user_id, {"questions": iq_questions, "index": 0, "question_type": "iq_test"})
     update.callback_query.message.reply_text(iq_questions[0])
@@ -327,6 +329,9 @@ def analize_user_answers(process_id):
         professional_test_main_result=tech_main_result,
         professional_test_recommendation=tech_recommendations
     )
+    process = FlowProcess.objects.get(id=process_id)
+    process.generate_resume()
+    return process
 
 
 @init_user
@@ -348,6 +353,7 @@ def get_user_question_answer(update: Update, context: CallbackContext):
     )
     if data["index"] == len(data["questions"]) - 1:
         if question_type == "iq_test":
+            update.message.reply_text("🔄Генерация вопросов...")
             questions = ask_gpt(
                 "Сформулируйте 10 вопрос, связанный с софт-навыком <<коммуникация>>, <<руководство>>,"
                 "<<решение проблем>>, <<адаптивность>>."
@@ -365,6 +371,7 @@ def get_user_question_answer(update: Update, context: CallbackContext):
             techs = list(Specialization.objects.filter(id__in=conv_data["categories"]).values_list("name", flat=True))
             for i in range(len(techs)):
                 techs[i] = f"<<{techs[i]}>>"
+            update.message.reply_text("🔄Генерация вопросов...")
             questions = ask_gpt(
                 "Сформулируйте 10 вопрос, связанный с технологиями " + ", ".join(techs) + "."
             )
@@ -378,7 +385,12 @@ def get_user_question_answer(update: Update, context: CallbackContext):
             return State.ENTER_QUESTION_ANSWER
         else:  # professional_test
             update.message.reply_text("📝Спасибо! Ваши ответы сохранены.")
-            analize_user_answers(conv_data["process_id"])
+            update.message.reply_text("🔄Подготовка резюме...")
+            process = analize_user_answers(conv_data["process_id"])
+            update.message.reply_document(
+                document=open(process.generated_resume.path, "rb"),
+                caption="📄Ваше резюме готово!"
+            )
     else:
         data["index"] += 1
         update.message.reply_text(data["questions"][data["index"]])

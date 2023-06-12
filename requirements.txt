@@ -5,3 +5,4 @@ python-environ
 python-telegram-bot==13.13
 openai
 django-redis
+weasyprint

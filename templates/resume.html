@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Certificate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+    />
+    <!-- ul ichidagi itemlarga active class bersa active bo'ladi  -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+        }
+
+        .container {
+            margin: 0 auto;
+            width: 100%;
+            max-width: 1120px;
+        }
+
+        main {
+            border: 4px solid #96dff5;
+            padding: 34px 43px;
+            max-width: 100%;
+            height: 100vh;
+
+        }
+
+        .ul,
+        .class-title {
+            width: 100%;
+            display: flex;
+            background: #444444;
+            color: white;
+        }
+
+        .class-title:nth-child(1) {
+            padding: 12px 21px;
+        }
+
+        .class-title:nth-child(2),
+        .class-title:nth-child(3) {
+            justify-content: center;
+            display: flex;
+            align-items: center;
+        }
+
+        .ul {
+            font-weight: 500;
+            font-size: 12px;
+            line-height: 15px;
+        }
+
+        .rank,
+        .rank-li {
+            width: 100%;
+            display: flex;
+            font-weight: 500;
+            font-size: 10px;
+            line-height: 12px;
+            color: #252525;
+        }
+
+        .rank-li:nth-child(1) {
+            background: #e6e6e6;
+            padding: 12px 21px;
+        }
+
+        .rank-li:nth-child(2) {
+            background: #96dff5;
+            justify-content: center;
+            display: flex;
+            align-items: center;
+            border-left: 2px solid white;
+            border-right: 2px solid white;
+        }
+
+        .rank-li:nth-child(3) {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #e6e6e6;
+        }
+
+        .score {
+            border-top: 2px solid white;
+            border-bottom: 2px solid white;
+        }
+
+        .active {
+            background: #1497c0 !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1
+            style="
+          font-weight: 700;
+          font-size: 32px;
+          line-height: 39px;
+          color: #000000;
+        "
+    >
+        {{ full_name }}
+    </h1>
+    <p
+            style="
+          font-weight: 500;
+          font-size: 12px;
+          line-height: 15px;
+          margin-top: 4px;
+          margin-bottom: 4px;
+        "
+    >
+        {{ specialty }}
+    </p>
+    <p
+            style="
+          font-weight: 500;
+          font-size: 12px;
+          line-height: 15px;
+          color: #1497c0;
+        "
+    >
+        {{ age }} лет
+    </p>
+    <p
+            style="
+          font-weight: 700;
+          font-size: 20px;
+          line-height: 24px;
+          margin-top: 13px;
+          margin-bottom: 4px;
+        "
+    >
+        IQ: {{ iq_score }}
+    </p>
+
+    <section>
+        <div style="width: 100%">
+            <ul class="ul">
+                <li class="class-title">Classification</li>
+                <li class="class-title">IQ Range</li>
+                <li class="class-title">%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '1' %} active{% endif %}">Highly gifted</li>
+                <li class="rank-li{% if iq_score_range == '1' %} active{% endif %}">150+</li>
+                <li class="rank-li{% if iq_score_range == '1' %} active{% endif %}">0.04%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '2' %} active{% endif %}">Gifted</li>
+                <li class="rank-li{% if iq_score_range == '2' %} active{% endif %}">140+</li>
+                <li class="rank-li{% if iq_score_range == '2' %} active{% endif %}">2%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '3' %} active{% endif %}">International High IQ Society membership</li>
+                <li class="rank-li{% if iq_score_range == '3' %} active{% endif %}">124</li>
+                <li class="rank-li{% if iq_score_range == '3' %} active{% endif %}">5%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '4' %} active{% endif %}">High</li>
+                <li class="rank-li{% if iq_score_range == '4' %} active{% endif %}">115-129</li>
+                <li class="rank-li{% if iq_score_range == '4' %} active{% endif %}">15%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '5' %} active{% endif %}">High average</li>
+                <li class="rank-li{% if iq_score_range == '5' %} active{% endif %}">110-115</li>
+                <li class="rank-li{% if iq_score_range == '5' %} active{% endif %}">25%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '6' %} active{% endif %}">Average</li>
+                <li class="rank-li{% if iq_score_range == '6' %} active{% endif %}">90-109</li>
+                <li class="rank-li{% if iq_score_range == '6' %} active{% endif %}">50%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '7' %} active{% endif %}">Low average</li>
+                <li class="rank-li{% if iq_score_range == '7' %} active{% endif %}">80-89</li>
+                <li class="rank-li{% if iq_score_range == '7' %} active{% endif %}">23%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '8' %} active{% endif %}">Borderline</li>
+                <li class="rank-li{% if iq_score_range == '8' %} active{% endif %}">70-79</li>
+                <li class="rank-li{% if iq_score_range == '8' %} active{% endif %}">8%</li>
+            </ul>
+        </div>
+        <div style="width: 100%" class="score">
+            <ul class="rank">
+                <li class="rank-li{% if iq_score_range == '9' %} active{% endif %}">Mentally deficient</li>
+                <li class="rank-li{% if iq_score_range == '9' %} active{% endif %}">< 70</li>
+                <li class="rank-li{% if iq_score_range == '9' %} active{% endif %}">2%</li>
+            </ul>
+        </div>
+    </section>
+
+    <h2
+            style="
+            margin-top: 32px;
+            margin-bottom: 4px;
+            font-weight: 700;
+            font-size: 20px;
+          "
+    >
+        Soft skill result:
+    </h2>
+    <div style="font-weight: 600; font-size: 12px; line-height: 15px">
+        Main result:
+        <p style="font-weight: 400; font-size: 10px; line-height: 12px; margin-top: 10px;">
+            {{ soft_skill_result }}
+            <br/>
+        </p>
+    </div>
+
+    <div style="font-weight: 600; font-size: 12px; line-height: 15px; margin-top: 14px;">
+        Recommendations:
+        <p style="font-weight: 400; font-size: 10px; line-height: 12px; margin-top: 10px;">
+            {{ soft_skill_recommendation }}
+            <br>
+        </p>
+    </div>
+
+
+    <p style="font-weight: 500;
+  font-size: 12px;
+  line-height: 15px;
+  color: #C1C1C1; 
+  margin: 23px 0 32px 0;
+  ">Page: 1-2</p>
+
+    </section>
+
+
+</main>
+
+<main style="position: relative;">
+    <h1
+            style="
+          font-weight: 700;
+          font-size: 32px;
+          line-height: 39px;
+          color: #000000;
+        "
+    >
+        {{ full_name }}
+    </h1>
+    <p
+            style="
+          font-weight: 500;
+          font-size: 12px;
+          line-height: 15px;
+          margin-top: 4px;
+          margin-bottom: 4px;
+        "
+    >
+        {{ specialty }}
+    </p>
+    <p
+            style="
+          font-weight: 500;
+          font-size: 12px;
+          line-height: 15px;
+          color: #1497c0;
+        "
+    >
+        {{ age }} лет
+    </p>
+
+    <h2
+            style="
+            margin-top: 32px;
+            margin-bottom: 4px;
+            font-weight: 700;
+            font-size: 20px;
+          "
+    >
+        Soft skill result:
+    </h2>
+
+
+    <div style="font-weight: 600; font-size: 12px; line-height: 15px">
+        Main result:
+        <p style="font-weight: 400; font-size: 10px; line-height: 12px; margin-top: 10px;">
+            {{ professional_test_main_result }}
+            <br/>
+        </p>
+    </div>
+
+    <div style="font-weight: 600; font-size: 12px; line-height: 15px; margin-top: 14px;">
+        Recommendations:
+        <p style="font-weight: 400; font-size: 10px; line-height: 12px; margin-top: 10px;">
+            {{ professional_test_recommendation }}
+            <br>
+        </p>
+    </div>
+
+    <p style="font-weight: 500;
+    font-size: 12px;
+    line-height: 15px;
+    color: #C1C1C1; 
+    margin: 23px 0 32px 0;
+    position: absolute;
+    bottom: 0;
+    ">Page: 2-2</p>
+</main>
+</body>
+</html>
