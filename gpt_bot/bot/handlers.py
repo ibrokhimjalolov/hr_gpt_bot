@@ -1,3 +1,4 @@
+from django.conf import settings
 from telegram.ext import CallbackQueryHandler, MessageHandler, Filters, ConversationHandler
 from telegram.ext.commandhandler import CommandHandler
 from telegram.update import Update
@@ -9,7 +10,7 @@ from django.db.models import F
 from django.core.cache import cache
 import datetime
 import openai
-from django.core.files import File
+
 
 class State:
     START_POINT = 1
@@ -20,7 +21,7 @@ class State:
     ENTER_REGION = 6
     ENTER_GENDER = 7
     ENTER_CV = 8
-    
+
     ENTER_CATEGORIES = 9
     ENTER_QUESTION_ANSWER = 10
 
@@ -30,20 +31,21 @@ class State:
 
 
 def init_user(func):
-	def wrapper(update: Update, context: CallbackContext):
-		chat_id = update.effective_chat.id
-		TelegramUser.objects.get_or_create(
-      		user_id=chat_id, 
-        	defaults={
-				"username": update.effective_chat.username,
-			}
-		)
-		return func(update, context)
+    def wrapper(update: Update, context: CallbackContext):
+        chat_id = update.effective_chat.id
+        TelegramUser.objects.get_or_create(
+            user_id=chat_id,
+            defaults={
+                "username": update.effective_chat.username,
+            }
+        )
+        return func(update, context)
 
-	return wrapper
+    return wrapper
 
 
-openai.api_key = "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"
+openai.api_key = settings.OPENAI_API_KEY
+
 
 def ask_gpt(prompt):
     question = openai.Completion.create(
@@ -81,68 +83,71 @@ def get_iq_questions() -> list:
 
 
 phone_request_button = ReplyKeyboardMarkup(
-	[[KeyboardButton("Отправить номер📲", request_contact=True)]],
-	resize_keyboard=True,
-	one_time_keyboard=True
+    [[KeyboardButton("Отправить номер📲", request_contact=True)]],
+    resize_keyboard=True,
+    one_time_keyboard=True
 )
 gender_choices = ReplyKeyboardMarkup(
-	[["Мужской", "Женский"]],
-	resize_keyboard=True,
-	one_time_keyboard=True
+    [["Мужской", "Женский"]],
+    resize_keyboard=True,
+    one_time_keyboard=True
 )
 
 
 @init_user
 def send_welcome(update: Update, context: CallbackContext):
-	update.message.reply_text(
-  		"👨‍💼Добро пожаловать! Пожалуйста, укажите свой номер телефона:", 
-		reply_markup=phone_request_button
-	)
-	return State.ENTER_PHONE_NUMBER
+    update.message.reply_text(
+        "👨‍💼Добро пожаловать! Пожалуйста, укажите свой номер телефона:",
+        reply_markup=phone_request_button
+    )
+    return State.ENTER_PHONE_NUMBER
 
 
 def get_user_conv_data(user_id) -> dict:
-	return cache.get(f"conv_data_{user_id}", {})
+    return cache.get(f"conv_data_{user_id}", {})
+
 
 def set_user_conv_data(user_id, data) -> None:
-	cache.set(f"conv_data_{user_id}", data, timeout=60*60*24)
+    cache.set(f"conv_data_{user_id}", data, timeout=60 * 60 * 24)
 
 
 def save_user_conv_data(user_id, data) -> None:
     def get_file_from_id(file_id):
         file = updater.bot.get_file(file_id)
         return file.file_path
+
     process = FlowProcess.objects.create(
-		telegram_user_id=user_id,
-		full_name=data["full_name"],
-		phone_number=data["phone_number"],
-		birth_date=data["birth_date"],
-		gender="male" if data["gender"] == "Мужской" else "famale",
-  		region_id=data["region"],
-    	cv=get_file_from_id(data["cv_file_id"]),
-	)
+        telegram_user_id=user_id,
+        full_name=data["full_name"],
+        phone_number=data["phone_number"],
+        birth_date=data["birth_date"],
+        gender="male" if data["gender"] == "Мужской" else "famale",
+        region_id=data["region"],
+        cv=get_file_from_id(data["cv_file_id"]),
+    )
     process.specialization.set(data["categories"])
     data["process_id"] = process.id
     set_user_conv_data(user_id, data)
 
 
 def get_cur_question_state(user_id) -> dict:
-	return cache.get(f"question_state_{user_id}")
+    return cache.get(f"question_state_{user_id}")
 
 
 def set_cur_question_state(user_id, data):
-	return cache.set(f"question_state_{user_id}", data, timeout=60*60*24)
+    return cache.set(f"question_state_{user_id}", data, timeout=60 * 60 * 24)
 
 
 @init_user
 def get_user_contact(update: Update, context: CallbackContext):
     phone_number = update.message.contact.phone_number
     data = {
-		"phone_number": phone_number
-	}
+        "phone_number": phone_number
+    }
     allow = UserLimit.objects.filter(used__lt=F("limit"), phone_number=phone_number).first()
     if not allow:
-        update.message.reply_text("👨‍💼К сожалению, вы не можете пройти тестирование. Пожалуйста, обратитесь к администратору.")
+        update.message.reply_text(
+            "👨‍💼К сожалению, вы не можете пройти тестирование. Пожалуйста, обратитесь к администратору.")
         return ConversationHandler.END
     allow.used = F("used") + 1
     allow.save(update_fields=["used"])
@@ -173,7 +178,6 @@ def get_regions_board():
     return regions_board
 
 
-    
 @init_user
 def get_user_birth_date(update: Update, context: CallbackContext):
     birth_date = update.message.text
@@ -185,20 +189,20 @@ def get_user_birth_date(update: Update, context: CallbackContext):
     return State.ENTER_REGION
 
 
-
 @init_user
 def get_user_region(update: Update, context: CallbackContext):
     update.callback_query.message.edit_reply_markup(reply_markup=None)
     region = update.callback_query.data
-    update.callback_query.message.edit_text(f"👨‍💼Спасибо! Пожалуйста введите свой регион:\n{Region.objects.get(id=region).name}")
+    update.callback_query.message.edit_text(
+        f"👨‍💼Спасибо! Пожалуйста введите свой регион:\n{Region.objects.get(id=region).name}")
     user_id = update.effective_chat.id
     data = get_user_conv_data(user_id)
     data["region"] = region
     set_user_conv_data(user_id, data)
     update.callback_query.message.reply_text("👨‍💼Спасибо! Пожалуйста введите свой пол:", reply_markup=gender_choices)
     return State.ENTER_GENDER
-    
-    
+
+
 @init_user
 def get_user_gender(update: Update, context: CallbackContext):
     gender = update.message.text
@@ -224,7 +228,7 @@ def get_user_category_board(user_id, selected_categories=None):
         else:
             categories.append([InlineKeyboardButton(name, callback_data=str(c.id))])
     if len(categories[-1]) < 2:
-            categories[-1].append(InlineKeyboardButton("Сохранить", callback_data="save"))
+        categories[-1].append(InlineKeyboardButton("Сохранить", callback_data="save"))
     else:
         categories.append([InlineKeyboardButton("Сохранить", callback_data="save")])
     categories_board = InlineKeyboardMarkup(categories)
@@ -238,7 +242,8 @@ def get_user_cv(update: Update, context: CallbackContext):
     data["cv_file_id"] = cv.file_id
     set_user_conv_data(update.message.chat.id, data)
     categories_board = get_user_category_board(update.message.chat.id)
-    update.message.reply_text("👨‍💼Спасибо! Пожалуйста выберите категории, в которых вы хотите работать:", reply_markup=categories_board)
+    update.message.reply_text("👨‍💼Спасибо! Пожалуйста выберите категории, в которых вы хотите работать:",
+                              reply_markup=categories_board)
     return State.ENTER_CATEGORIES
 
 
@@ -261,7 +266,8 @@ def get_user_category(update: Update, context: CallbackContext):
         return State.ENTER_CATEGORIES
     set_user_conv_data(user_id, data)
     save_user_conv_data(user_id, data)
-    update.callback_query.message.reply_text("📝Спасибо! Ваша информация сохранена. Пожалуйста, ответьте на следующие вопросы:")
+    update.callback_query.message.reply_text(
+        "📝Спасибо! Ваша информация сохранена. Пожалуйста, ответьте на следующие вопросы:")
     iq_questions = get_iq_questions()
     set_cur_question_state(user_id, {"questions": iq_questions, "index": 0, "question_type": "iq_test"})
     update.callback_query.message.reply_text(iq_questions[0])
@@ -271,43 +277,45 @@ def get_user_category(update: Update, context: CallbackContext):
 def analize_user_answers(process_id):
     iq_tests = Question.objects.filter(process_id=process_id, question_type="iq_test")
     result = ask_gpt(
-        "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in iq_tests]) + 
-        "\n\nосноваясь выщеуказанным ответам дай суммарный балл по шкале 1 - 250 для определения IQ интеллект и верни только цифру."
+        "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in iq_tests]) +
+        "\n\nосноваясь выщеуказанным ответам дай суммарный балл по шкале 1 - 250 для "
+        "определения IQ интеллект и верни только цифру."
     )
+
     def parse_int(st):
         try:
             return int("".join([c for c in st if c.isdigit()]))
         except TypeError:
             return 0
-        
+
     iq_score = parse_int(result)
     soft_skill_tests = Question.objects.filter(process_id=process_id, question_type="soft_skill")
     prompt = (
-        "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in soft_skill_tests]) + 
-        "\n\nПроанализируй ответы кандидата на вопросы по софт-скиллам и верни результат в виде текста."
+            "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in soft_skill_tests]) +
+            "\n\nПроанализируй ответы кандидата на вопросы по софт-скиллам и верни результат в виде текста."
     )
     soft_skill_main_result = ask_gpt(prompt).strip()
     if soft_skill_main_result.startswith("Ответ:"):
         soft_skill_main_result = soft_skill_main_result[len("Ответ:"):]
     prompt = (
-        "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in soft_skill_tests]) + 
-        "\n\nПроанализируй ответы кандидата на вопросы по софт-скиллам и рекомендации по улучшению."
+            "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in soft_skill_tests]) +
+            "\n\nПроанализируй ответы кандидата на вопросы по софт-скиллам и рекомендации по улучшению."
     )
     soft_skill_recommendations = ask_gpt(prompt).strip()
     if soft_skill_recommendations.startswith("Ответ:"):
         soft_skill_recommendations = soft_skill_recommendations[len("Ответ:"):]
-    
+
     tech_tests = Question.objects.filter(process_id=process_id, question_type="professional_test")
     prompt = (
-        "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in tech_tests]) + 
-        "\n\nПроанализируй ответы кандидата на вопросы по техническим навыкам и верни результат в виде текста."
+            "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in tech_tests]) +
+            "\n\nПроанализируй ответы кандидата на вопросы по техническим навыкам и верни результат в виде текста."
     )
     tech_main_result = ask_gpt(prompt).strip()
     if tech_main_result.startswith("Ответ:"):
         tech_main_result = tech_main_result[len("Ответ:"):]
     prompt = (
-        "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in tech_tests]) + 
-        "\n\nПроанализируй ответы кандидата на вопросы по техническим навыкам и рекомендации по улучшению."
+            "\n".join(["%s\nОтвет: %s" % (q.question, q.answer) for q in tech_tests]) +
+            "\n\nПроанализируй ответы кандидата на вопросы по техническим навыкам и рекомендации по улучшению."
     )
     tech_recommendations = ask_gpt(prompt).strip()
     if tech_recommendations.startswith("Ответ:"):
@@ -322,34 +330,35 @@ def analize_user_answers(process_id):
 
 
 @init_user
-def get_user_question_answer(update: Update, context: CallbackContext):  
+def get_user_question_answer(update: Update, context: CallbackContext):
     answer = update.message.text
-    
+
     if len(answer) > 200:
         update.message.reply_text("Слишком длинный ответ. Пожалуйста, ответьте на вопрос в одном сообщении.")
         return State.ENTER_QUESTION_ANSWER
-    
+
     data = get_cur_question_state(update.message.chat.id)
     conv_data = get_user_conv_data(update.message.chat.id)
     question = data["questions"][data["index"]]
     question_type = data["question_type"]
     Question.objects.update_or_create(
         process_id=conv_data["process_id"],
-		index=data["index"], question_type=question_type, 
-  		defaults={"question": question, "answer": answer}
-	)
+        index=data["index"], question_type=question_type,
+        defaults={"question": question, "answer": answer}
+    )
     if data["index"] == len(data["questions"]) - 1:
         if question_type == "iq_test":
             questions = ask_gpt(
-				"Сформулируйте 10 вопрос, связанный с софт-навыком <<коммуникация>>, <<руководство>>,"
-				"<<решение проблем>>, <<адаптивность>>."
-			)
+                "Сформулируйте 10 вопрос, связанный с софт-навыком <<коммуникация>>, <<руководство>>,"
+                "<<решение проблем>>, <<адаптивность>>."
+            )
             soft_skill_questions = []
             for q in questions.split("\n"):
                 if q:
                     soft_skill_questions.append(q)
-    
-            set_cur_question_state(update.message.chat.id, {"questions": soft_skill_questions, "index": 0, "question_type": "soft_skill"})
+
+            set_cur_question_state(update.message.chat.id,
+                                   {"questions": soft_skill_questions, "index": 0, "question_type": "soft_skill"})
             update.message.reply_text(soft_skill_questions[0])
             return State.ENTER_QUESTION_ANSWER
         elif question_type == "soft_skill":
@@ -357,16 +366,17 @@ def get_user_question_answer(update: Update, context: CallbackContext):
             for i in range(len(techs)):
                 techs[i] = f"<<{techs[i]}>>"
             questions = ask_gpt(
-				"Сформулируйте 10 вопрос, связанный с технологиями " + ", ".join(techs) + "."
-			)
+                "Сформулируйте 10 вопрос, связанный с технологиями " + ", ".join(techs) + "."
+            )
             tech_skill_questions = []
             for q in questions.split("\n"):
                 if q:
                     tech_skill_questions.append(q)
-            set_cur_question_state(update.message.chat.id, {"questions": tech_skill_questions, "index": 0, "question_type": "professional_test"})
+            set_cur_question_state(update.message.chat.id, {"questions": tech_skill_questions, "index": 0,
+                                                            "question_type": "professional_test"})
             update.message.reply_text(tech_skill_questions[0])
             return State.ENTER_QUESTION_ANSWER
-        else: ## professional_test
+        else:  # professional_test
             update.message.reply_text("📝Спасибо! Ваши ответы сохранены.")
             analize_user_answers(conv_data["process_id"])
     else:
@@ -374,7 +384,7 @@ def get_user_question_answer(update: Update, context: CallbackContext):
         update.message.reply_text(data["questions"][data["index"]])
         set_cur_question_state(update.message.chat.id, data)
         return State.ENTER_QUESTION_ANSWER
-    
+
 
 question_conv_handler = ConversationHandler(
     entry_points=[
@@ -392,6 +402,5 @@ question_conv_handler = ConversationHandler(
     },
     fallbacks=[]
 )
-
 
 updater.dispatcher.add_handler(question_conv_handler)
