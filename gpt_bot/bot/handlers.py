@@ -141,14 +141,16 @@ def set_cur_question_state(user_id, data):
 @init_user
 def get_user_contact(update: Update, context: CallbackContext):
     phone_number = update.message.contact.phone_number
+    phone_number = "".join(phone_number.split())
+    print(phone_number)
     data = {
         "phone_number": phone_number
     }
     allow = UserLimit.objects.filter(used__lt=F("limit"), phone_number=phone_number).first()
-    if not allow:
-        update.message.reply_text(
-            "👨‍💼К сожалению, вы не можете пройти тестирование. Пожалуйста, обратитесь к администратору.")
-        return ConversationHandler.END
+    # if not allow:
+    #     update.message.reply_text(
+    #         "👨‍💼К сожалению, вы не можете пройти тестирование. Пожалуйста, обратитесь к администратору.")
+    #     return ConversationHandler.END
     allow.used = F("used") + 1
     allow.save(update_fields=["used"])
     set_user_conv_data(update.message.chat.id, data)
