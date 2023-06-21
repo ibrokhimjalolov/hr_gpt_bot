@@ -183,6 +183,7 @@ def get_regions_board():
 @init_user
 def get_user_birth_date(update: Update, context: CallbackContext):
     birth_date = update.message.text
+    print(birth_date)
     date = datetime.datetime.strptime(birth_date, "%d.%m.%Y")
     data = get_user_conv_data(update.message.chat.id)
     data["birth_date"] = date
